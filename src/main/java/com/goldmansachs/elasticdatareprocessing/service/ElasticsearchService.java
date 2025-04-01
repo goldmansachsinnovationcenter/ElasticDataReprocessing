@@ -6,10 +6,11 @@ import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
-import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
-import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,254 +24,409 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * Service for Elasticsearch operations.
+ * Handles data retrieval, processing, and indexing operations.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ElasticsearchService {
+public final class ElasticsearchService {
 
-    private final ElasticsearchClient elasticsearchClient;
-    private final ObjectMapper objectMapper;
+/**
+ * Maximum number of sample records to return.
+ */
+private static final int MAX_SAMPLE_SIZE = 5;
 
-    @Value("${elasticsearch.batch-size:100}")
-    private int defaultBatchSize;
+/**
+ * Default number of records to retrieve for sample operations.
+ */
+private static final int DEFAULT_SAMPLE_SIZE = 10;
 
-    /**
-     * Retrieves sample records from the source index based on filter criteria
-     */
-    public ProcessingResult getSampleRecords(ElasticProcessingRequest request) {
-        try {
-            int batchSize = request.getBatchSize() != null ? request.getBatchSize() : 10;
-            
-            Query query = buildFilterQuery(request);
-            
-            SearchResponse<Map> response = elasticsearchClient.search(s -> s
-                    .index(request.getSourceIndex())
-                    .query(query)
-                    .size(batchSize), 
-                    Map.class);
-            
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> records = response.hits().hits().stream()
-                    .map(hit -> (Map<String, Object>) hit.source())
-                    .collect(Collectors.toList());
-            
-            List<Map<String, Object>> processedRecords = records.stream()
-                    .map(record -> processRecord(record, request))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            
+/**
+ * Elasticsearch client for interacting with the cluster.
+ */
+private final ElasticsearchClient elasticsearchClient;
+
+/**
+ * Object mapper for JSON processing.
+ */
+private final ObjectMapper objectMapper;
+
+/**
+ * Default batch size for processing operations.
+ */
+@Value("${elasticsearch.batch-size:100}")
+private int defaultBatchSize;
+
+/**
+ * Retrieves sample records from the source index based on filter criteria.
+ *
+ * @param request the processing request containing source index and filter
+ *                criteria
+ * @return processing result with sample records and statistics
+ */
+public ProcessingResult getSampleRecords(
+        final ElasticProcessingRequest request) {
+    try {
+        final int batchSize = request.getBatchSize() != null
+                ? request.getBatchSize() : DEFAULT_SAMPLE_SIZE;
+
+        final Query query = buildFilterQuery(request);
+
+        final SearchResponse<Map> response = elasticsearchClient.search(s -> s
+                .index(request.getSourceIndex())
+                .query(query)
+                .size(batchSize),
+                Map.class);
+
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> records =
+                    response.hits().hits().stream()
+                .map(hit -> (Map<String, Object>) hit.source())
+                .collect(Collectors.toList());
+
+        final List<Map<String, Object>> processedRecords = records.stream()
+                .map(record -> processRecord(record, request))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        return ProcessingResult.builder()
+                .sampleSourceRecords(records)
+                .sampleProcessedRecords(processedRecords)
+                .totalMatched(processedRecords.size())
+                .message("Retrieved " + records.size() + " records, "
+                        + processedRecords.size() + " matched filter criteria")
+                .build();
+
+    } catch (IOException e) {
+        log.error("Error retrieving sample records", e);
+        return ProcessingResult.builder()
+                .message("Error: " + e.getMessage())
+                .build();
+    }
+}
+
+/**
+ * Process a batch of records from source index and save to target index.
+ *
+ * @param request the processing request containing source/target indices and
+ *                processing options
+ * @return processing result with statistics and verification data
+ */
+public ProcessingResult processBatch(final ElasticProcessingRequest request) {
+    try {
+        final int batchSize = request.getBatchSize() != null
+                ? request.getBatchSize() : defaultBatchSize;
+
+        final Query query = buildBatchQuery(request);
+
+        final SearchRequest.Builder searchBuilder = new SearchRequest.Builder()
+                .index(request.getSourceIndex())
+                .query(query)
+                .size(batchSize);
+
+        configureSorting(searchBuilder, request);
+
+        final SearchResponse<Map> response = elasticsearchClient.search(
+                searchBuilder.build(), Map.class);
+
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> records =
+                response.hits().hits().stream()
+                .map(hit -> (Map<String, Object>) hit.source())
+                .collect(Collectors.toList());
+
+        if (records.isEmpty()) {
             return ProcessingResult.builder()
-                    .sampleSourceRecords(records)
-                    .sampleProcessedRecords(processedRecords)
-                    .totalMatched(processedRecords.size())
-                    .message("Retrieved " + records.size() + " records, " + processedRecords.size() + " matched filter criteria")
-                    .build();
-            
-        } catch (IOException e) {
-            log.error("Error retrieving sample records", e);
-            return ProcessingResult.builder()
-                    .message("Error: " + e.getMessage())
+                    .message("No more records to process")
+                    .hasMoreRecords(false)
                     .build();
         }
+
+        final ProcessingResult result = processAndIndexRecords(records, request);
+
+        return result;
+
+    } catch (IOException e) {
+        log.error("Error processing batch", e);
+        return ProcessingResult.builder()
+                .message("Error: " + e.getMessage())
+                .build();
     }
-    
-    /**
-     * Process a batch of records from source index and save to target index
-     */
-    public ProcessingResult processBatch(ElasticProcessingRequest request) {
-        try {
-            int batchSize = request.getBatchSize() != null ? request.getBatchSize() : defaultBatchSize;
-            
-            BoolQuery.Builder boolQueryBuilder = new BoolQuery.Builder();
-            
-            if (StringUtils.hasText(request.getFilterField()) && StringUtils.hasText(request.getFilterValue())) {
-                boolQueryBuilder.must(MatchQuery.of(m -> m
-                        .field(request.getFilterField())
-                        .query(request.getFilterValue())
-                )._toQuery());
-            }
-            
-            if (StringUtils.hasText(request.getTimestampField()) && StringUtils.hasText(request.getLastTimestamp())) {
-                boolQueryBuilder.must(RangeQuery.of(r -> r
+}
+
+/**
+ * Process records and index them to the target index.
+ *
+ * @param records the records to process
+ * @param request the processing request
+ * @return processing result with statistics and verification data
+ * @throws IOException if there's an error during processing or indexing
+ */
+private ProcessingResult processAndIndexRecords(
+        final List<Map<String, Object>> records,
+        final ElasticProcessingRequest request) throws IOException {
+
+    final List<Map<String, Object>> processedRecords = new ArrayList<>();
+    String lastTimestamp = null;
+
+    for (Map<String, Object> record : records) {
+        final Map<String, Object> processedRecord = processRecord(record, request);
+        if (processedRecord != null) {
+            processedRecords.add(processedRecord);
+        }
+
+        if (StringUtils.hasText(request.getTimestampField())
+                && record.containsKey(request.getTimestampField())) {
+            lastTimestamp = record.get(request.getTimestampField()).toString();
+        }
+    }
+
+    if (!processedRecords.isEmpty()) {
+        indexProcessedRecords(processedRecords, request.getTargetIndex());
+    }
+
+    final Map<String, Object> verificationRecord = getVerificationRecord(
+            request.getTargetIndex(), !processedRecords.isEmpty());
+
+    return ProcessingResult.builder()
+            .sampleSourceRecords(records.subList(0,
+                    Math.min(MAX_SAMPLE_SIZE, records.size())))
+            .sampleProcessedRecords(processedRecords.isEmpty()
+                    ? processedRecords
+                    : processedRecords.subList(0,
+                            Math.min(MAX_SAMPLE_SIZE, processedRecords.size())))
+            .verificationRecord(verificationRecord)
+            .totalProcessed(records.size())
+            .totalMatched(processedRecords.size())
+            .lastProcessedTimestamp(lastTimestamp)
+            .hasMoreRecords(records.size() >= request.getBatchSize())
+            .message("Processed " + records.size() + " records, "
+                    + processedRecords.size() + " matched filter criteria")
+            .build();
+}
+
+/**
+ * Index processed records to the target index.
+ *
+ * @param processedRecords the records to index
+ * @param targetIndex the target index name
+ * @throws IOException if there's an error during indexing
+ */
+private void indexProcessedRecords(
+        final List<Map<String, Object>> processedRecords,
+        final String targetIndex) throws IOException {
+
+    final List<BulkOperation> bulkOperations = new ArrayList<>();
+
+    for (Map<String, Object> processedRecord : processedRecords) {
+        bulkOperations.add(BulkOperation.of(op -> op
+                .index(IndexOperation.of(idx -> idx
+                        .document(processedRecord)
+                ))
+        ));
+    }
+
+    final BulkResponse bulkResponse = elasticsearchClient.bulk(b -> b
+            .index(targetIndex)
+            .operations(bulkOperations)
+    );
+
+    if (bulkResponse.errors()) {
+        log.error("Errors during bulk indexing: {}", bulkResponse.items().stream()
+                .filter(item -> item.error() != null)
+                .map(item -> item.error().reason())
+                .collect(Collectors.joining(", ")));
+    }
+}
+
+/**
+ * Get a verification record from the target index.
+ *
+ * @param targetIndex the target index name
+ * @param shouldVerify whether verification should be attempted
+ * @return a verification record or null if not available
+ */
+private Map<String, Object> getVerificationRecord(
+        final String targetIndex, final boolean shouldVerify) {
+
+    if (!shouldVerify) {
+        return null;
+    }
+
+    try {
+        final SearchResponse<Map> verificationResponse = elasticsearchClient.search(s -> s
+                .index(targetIndex)
+                .size(1),
+                Map.class);
+
+        if (!verificationResponse.hits().hits().isEmpty()) {
+            @SuppressWarnings("unchecked")
+            final Map<String, Object> sourceMap =
+                    (Map<String, Object>) verificationResponse.hits().hits().get(0).source();
+            return sourceMap;
+        }
+    } catch (Exception e) {
+        log.warn("Could not retrieve verification record", e);
+    }
+
+    return null;
+}
+
+/**
+ * Configure sorting for the search request.
+ *
+ * @param searchBuilder the search request builder
+ * @param request the processing request
+ */
+private void configureSorting(
+        final SearchRequest.Builder searchBuilder,
+        final ElasticProcessingRequest request) {
+
+    if (StringUtils.hasText(request.getTimestampField())) {
+        searchBuilder.sort(s -> s
+                .field(f -> f
                         .field(request.getTimestampField())
-                        .gt(JsonData.of(request.getLastTimestamp()))
-                )._toQuery());
+                        .order(SortOrder.Asc)
+                )
+        );
+    }
+}
+
+/**
+ * Build query for batch processing with timestamp filtering.
+ *
+ * @param request the processing request
+ * @return query for batch processing
+ */
+private Query buildBatchQuery(final ElasticProcessingRequest request) {
+    final BoolQuery.Builder boolQueryBuilder = new BoolQuery.Builder();
+
+    if (StringUtils.hasText(request.getFilterField())
+            && StringUtils.hasText(request.getFilterValue())) {
+        boolQueryBuilder.must(MatchQuery.of(m -> m
+                .field(request.getFilterField())
+                .query(request.getFilterValue())
+        )._toQuery());
+    }
+
+    if (StringUtils.hasText(request.getTimestampField())
+            && StringUtils.hasText(request.getLastTimestamp())) {
+        boolQueryBuilder.must(RangeQuery.of(r -> r
+                .field(request.getTimestampField())
+                .gt(JsonData.of(request.getLastTimestamp()))
+        )._toQuery());
+    }
+
+    final BoolQuery boolQuery = boolQueryBuilder.build();
+    return boolQuery._toQuery();
+}
+
+/**
+ * Process a single record according to the request parameters.
+ *
+ * @param record the record to process
+ * @param request the processing request
+ * @return processed record or null if it doesn't match filter criteria
+ */
+private Map<String, Object> processRecord(
+        final Map<String, Object> record,
+        final ElasticProcessingRequest request) {
+    try {
+        if (StringUtils.hasText(request.getFilterField())
+                && StringUtils.hasText(request.getFilterValue())) {
+            final Object fieldValue = record.get(request.getFilterField());
+            if (fieldValue == null || !fieldValue.toString().contains(request.getFilterValue())) {
+                return null; // Skip record that doesn't match filter
             }
-            
-            Query query = boolQueryBuilder.build()._toQuery();
-            
-            SearchRequest.Builder searchBuilder = new SearchRequest.Builder()
-                    .index(request.getSourceIndex())
-                    .query(query)
-                    .size(batchSize);
-            
-            if (StringUtils.hasText(request.getTimestampField())) {
-                searchBuilder.sort(s -> s
-                        .field(f -> f
-                                .field(request.getTimestampField())
-                                .order(SortOrder.Asc)
-                        )
-                );
+        }
+
+        final Map<String, Object> processedRecord = new HashMap<>(record);
+
+        if (StringUtils.hasText(request.getInputJsonField())
+                && StringUtils.hasText(request.getMasterJsonPath())) {
+            extractAndAddMasterField(processedRecord, record, request);
+        }
+
+        return processedRecord;
+    } catch (JsonProcessingException e) {
+        log.error("Error processing record JSON", e);
+        return null;
+    }
+}
+
+/**
+ * Extract master field value from JSON and add it to the processed record.
+ *
+ * @param processedRecord the record being processed
+ * @param sourceRecord the source record
+ * @param request the processing request
+ * @throws JsonProcessingException if there's an error processing JSON
+ */
+private void extractAndAddMasterField(
+        final Map<String, Object> processedRecord,
+        final Map<String, Object> sourceRecord,
+        final ElasticProcessingRequest request) throws JsonProcessingException {
+
+    final Object inputFieldValue = sourceRecord.get(request.getInputJsonField());
+
+    if (inputFieldValue != null) {
+        final String jsonStr = inputFieldValue instanceof String
+                ? (String) inputFieldValue
+                : objectMapper.writeValueAsString(inputFieldValue);
+
+        final JsonNode rootNode = objectMapper.readTree(jsonStr);
+        final JsonNode masterNode = rootNode.at(normalizePath(request.getMasterJsonPath()));
+
+        if (!masterNode.isMissingNode()) {
+            if (masterNode.isValueNode()) {
+                processedRecord.put("master", masterNode.asText());
+            } else {
+                processedRecord.put("master", objectMapper.convertValue(masterNode, Map.class));
             }
-            
-            SearchResponse<Map> response = elasticsearchClient.search(searchBuilder.build(), Map.class);
-            
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> records = response.hits().hits().stream()
-                    .map(hit -> (Map<String, Object>) hit.source())
-                    .collect(Collectors.toList());
-            
-            if (records.isEmpty()) {
-                return ProcessingResult.builder()
-                        .message("No more records to process")
-                        .hasMoreRecords(false)
-                        .build();
-            }
-            
-            List<Map<String, Object>> processedRecords = new ArrayList<>();
-            String lastTimestamp = null;
-            
-            for (Map<String, Object> record : records) {
-                Map<String, Object> processedRecord = processRecord(record, request);
-                if (processedRecord != null) {
-                    processedRecords.add(processedRecord);
-                }
-                
-                if (StringUtils.hasText(request.getTimestampField()) && record.containsKey(request.getTimestampField())) {
-                    lastTimestamp = record.get(request.getTimestampField()).toString();
-                }
-            }
-            
-            if (!processedRecords.isEmpty()) {
-                List<BulkOperation> bulkOperations = new ArrayList<>();
-                
-                for (Map<String, Object> processedRecord : processedRecords) {
-                    bulkOperations.add(BulkOperation.of(op -> op
-                            .index(IndexOperation.of(idx -> idx
-                                    .document(processedRecord)
-                            ))
-                    ));
-                }
-                
-                BulkResponse bulkResponse = elasticsearchClient.bulk(b -> b
-                        .index(request.getTargetIndex())
-                        .operations(bulkOperations)
-                );
-                
-                if (bulkResponse.errors()) {
-                    log.error("Errors during bulk indexing: {}", bulkResponse.items().stream()
-                            .filter(item -> item.error() != null)
-                            .map(item -> item.error().reason())
-                            .collect(Collectors.joining(", ")));
-                }
-            }
-            
-            Map<String, Object> verificationRecord = null;
-            if (!processedRecords.isEmpty()) {
-                try {
-                    SearchResponse<Map> verificationResponse = elasticsearchClient.search(s -> s
-                            .index(request.getTargetIndex())
-                            .size(1), 
-                            Map.class);
-                    
-                    if (!verificationResponse.hits().hits().isEmpty()) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> sourceMap = (Map<String, Object>) verificationResponse.hits().hits().get(0).source();
-                        verificationRecord = sourceMap;
-                    }
-                } catch (Exception e) {
-                    log.warn("Could not retrieve verification record", e);
-                }
-            }
-            
-            return ProcessingResult.builder()
-                    .sampleSourceRecords(records.subList(0, Math.min(5, records.size())))
-                    .sampleProcessedRecords(processedRecords.subList(0, Math.min(5, processedRecords.size())))
-                    .verificationRecord(verificationRecord)
-                    .totalProcessed(records.size())
-                    .totalMatched(processedRecords.size())
-                    .lastProcessedTimestamp(lastTimestamp)
-                    .hasMoreRecords(records.size() >= batchSize)
-                    .message("Processed " + records.size() + " records, " + processedRecords.size() + " matched filter criteria")
-                    .build();
-            
-        } catch (IOException e) {
-            log.error("Error processing batch", e);
-            return ProcessingResult.builder()
-                    .message("Error: " + e.getMessage())
-                    .build();
         }
     }
-    
-    /**
-     * Process a single record according to the request parameters
-     */
-    private Map<String, Object> processRecord(Map<String, Object> record, ElasticProcessingRequest request) {
-        try {
-            if (StringUtils.hasText(request.getFilterField()) && StringUtils.hasText(request.getFilterValue())) {
-                Object fieldValue = record.get(request.getFilterField());
-                if (fieldValue == null || !fieldValue.toString().contains(request.getFilterValue())) {
-                    return null; // Skip record that doesn't match filter
-                }
-            }
-            
-            Map<String, Object> processedRecord = new HashMap<>(record);
-            
-            if (StringUtils.hasText(request.getInputJsonField()) && StringUtils.hasText(request.getMasterJsonPath())) {
-                Object inputFieldValue = record.get(request.getInputJsonField());
-                
-                if (inputFieldValue != null) {
-                    String jsonStr = inputFieldValue instanceof String 
-                            ? (String) inputFieldValue 
-                            : objectMapper.writeValueAsString(inputFieldValue);
-                    
-                    JsonNode rootNode = objectMapper.readTree(jsonStr);
-                    JsonNode masterNode = rootNode.at(normalizePath(request.getMasterJsonPath()));
-                    
-                    if (!masterNode.isMissingNode()) {
-                        if (masterNode.isValueNode()) {
-                            processedRecord.put("master", masterNode.asText());
-                        } else {
-                            processedRecord.put("master", objectMapper.convertValue(masterNode, Map.class));
-                        }
-                    }
-                }
-            }
-            
-            return processedRecord;
-        } catch (JsonProcessingException e) {
-            log.error("Error processing record JSON", e);
-            return null;
-        }
+}
+
+/**
+ * Build query based on filter criteria.
+ *
+ * @param request the processing request
+ * @return query for filtering records
+ */
+private Query buildFilterQuery(final ElasticProcessingRequest request) {
+    final BoolQuery.Builder boolQueryBuilder = new BoolQuery.Builder();
+
+    if (StringUtils.hasText(request.getFilterField())
+            && StringUtils.hasText(request.getFilterValue())) {
+        boolQueryBuilder.must(MatchQuery.of(m -> m
+                .field(request.getFilterField())
+                .query(request.getFilterValue())
+        )._toQuery());
     }
-    
-    /**
-     * Build query based on filter criteria
-     */
-    private Query buildFilterQuery(ElasticProcessingRequest request) {
-        BoolQuery.Builder boolQueryBuilder = new BoolQuery.Builder();
-        
-        if (StringUtils.hasText(request.getFilterField()) && StringUtils.hasText(request.getFilterValue())) {
-            boolQueryBuilder.must(MatchQuery.of(m -> m
-                    .field(request.getFilterField())
-                    .query(request.getFilterValue())
-            )._toQuery());
-        }
-        
-        BoolQuery boolQuery = boolQueryBuilder.build();
-        return boolQuery._toQuery();
+
+    final BoolQuery boolQuery = boolQueryBuilder.build();
+    return boolQuery._toQuery();
+}
+
+/**
+ * Normalize JSON path to ensure it starts with '/'.
+ *
+ * @param path the JSON path to normalize
+ * @return normalized JSON path
+ */
+private String normalizePath(final String path) {
+    if (!path.startsWith("/")) {
+        return "/" + path;
     }
-    
-    /**
-     * Normalize JSON path to ensure it starts with '/'
-     */
-    private String normalizePath(String path) {
-        if (!path.startsWith("/")) {
-            return "/" + path;
-        }
-        return path;
-    }
+    return path;
+}
 }
