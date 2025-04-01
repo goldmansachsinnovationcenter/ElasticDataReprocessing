@@ -75,28 +75,20 @@ private int defaultBatchSize;
  */
 public ProcessingResult getSampleRecords(
         final ElasticProcessingRequest request) {
-    try {
-        final List<Map<String, Object>> records = generateMockRecords(request);
-        
-        final List<Map<String, Object>> processedRecords = records.stream()
-                .map(record -> processRecord(record, request))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+    final List<Map<String, Object>> records = generateMockRecords(request);
+    
+    final List<Map<String, Object>> processedRecords = records.stream()
+            .map(record -> processRecord(record, request))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
 
-        return ProcessingResult.builder()
-                .sampleSourceRecords(records)
-                .sampleProcessedRecords(processedRecords)
-                .totalMatched(processedRecords.size())
-                .message("Retrieved " + records.size() + " records, "
-                        + processedRecords.size() + " matched filter criteria")
-                .build();
-
-    } catch (IOException e) {
-        log.error("Error retrieving sample records", e);
-        return ProcessingResult.builder()
-                .message("Error: " + e.getMessage())
-                .build();
-    }
+    return ProcessingResult.builder()
+            .sampleSourceRecords(records)
+            .sampleProcessedRecords(processedRecords)
+            .totalMatched(processedRecords.size())
+            .message("Retrieved " + records.size() + " records, "
+                    + processedRecords.size() + " matched filter criteria")
+            .build();
 }
 
 /**
@@ -107,20 +99,18 @@ public ProcessingResult getSampleRecords(
  * @return processing result with statistics and verification data
  */
 public ProcessingResult processBatch(final ElasticProcessingRequest request) {
+    final List<Map<String, Object>> records = generateMockRecords(request);
+    
+    if (records.isEmpty()) {
+        return ProcessingResult.builder()
+                .message("No more records to process")
+                .hasMoreRecords(false)
+                .build();
+    }
+
     try {
-        final List<Map<String, Object>> records = generateMockRecords(request);
-        
-        if (records.isEmpty()) {
-            return ProcessingResult.builder()
-                    .message("No more records to process")
-                    .hasMoreRecords(false)
-                    .build();
-        }
-
         final ProcessingResult result = processAndIndexRecords(records, request);
-
         return result;
-
     } catch (IOException e) {
         log.error("Error processing batch", e);
         return ProcessingResult.builder()
