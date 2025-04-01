@@ -13,7 +13,7 @@ A Spring Boot application for reprocessing data from Elasticsearch clusters.
 
 ## Requirements
 
-- Java 21
+- Java 17
 - Maven 3.6+
 - Elasticsearch 7.x or 8.x
 
