@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: elastic-data-reprocessing
+
+server:
+  port: 8080
+
+elasticsearch:
+  host: localhost
+  port: 9200
+  username: 
+  password: 
+  use-ssl: false
+  connection-timeout: 5000
+  socket-timeout: 60000
+  batch-size: 100
