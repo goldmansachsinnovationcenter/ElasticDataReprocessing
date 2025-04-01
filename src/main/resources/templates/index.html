@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elastic Data Reprocessing</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h3 class="center-align">Elastic Data Reprocessing</h3>
+        
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Index Configuration</span>
+                        <div class="row">
+                            <div class="input-field col s6">
+                                <input id="sourceIndex" type="text" class="validate" required>
+                                <label for="sourceIndex">Source Index Name</label>
+                            </div>
+                            <div class="input-field col s6">
+                                <input id="targetIndex" type="text" class="validate" required>
+                                <label for="targetIndex">Target Index Name</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="input-field col s6">
+                                <input id="filterField" type="text" class="validate">
+                                <label for="filterField">Filter Field (e.g. actionName)</label>
+                            </div>
+                            <div class="input-field col s6">
+                                <input id="filterValue" type="text" class="validate">
+                                <label for="filterValue">Filter Value</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="input-field col s6">
+                                <input id="inputJsonField" type="text" class="validate">
+                                <label for="inputJsonField">Input JSON Field</label>
+                            </div>
+                            <div class="input-field col s6">
+                                <input id="masterJsonPath" type="text" class="validate">
+                                <label for="masterJsonPath">Master JSON Path</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="input-field col s6">
+                                <input id="timestampField" type="text" class="validate">
+                                <label for="timestampField">Timestamp Field (optional)</label>
+                            </div>
+                            <div class="input-field col s6">
+                                <input id="batchSize" type="number" class="validate" value="100">
+                                <label for="batchSize" class="active">Batch Size</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-action">
+                        <div class="right-align">
+                            <button id="getSampleBtn" class="btn-floating btn-large waves-effect waves-light blue">
+                                <i class="material-icons">search</i>
+                            </button>
+                            <span class="action-label">Get Sample Records</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="sampleRecordsSection" class="row" style="display: none;">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Sample Records</span>
+                        <div class="row">
+                            <div class="col s12">
+                                <ul class="tabs">
+                                    <li class="tab col s6"><a href="#sourceRecords" class="active">Source Records</a></li>
+                                    <li class="tab col s6"><a href="#processedRecords">Processed Records</a></li>
+                                </ul>
+                            </div>
+                            <div id="sourceRecords" class="col s12">
+                                <div class="records-container">
+                                    <pre id="sourceRecordsJson" class="json-display"></pre>
+                                </div>
+                            </div>
+                            <div id="processedRecords" class="col s12">
+                                <div class="records-container">
+                                    <pre id="processedRecordsJson" class="json-display"></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12">
+                                <div id="sampleResultMessage" class="message-box"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-action">
+                        <div class="right-align">
+                            <button id="processDataBtn" class="btn-floating btn-large waves-effect waves-light green">
+                                <i class="material-icons">play_arrow</i>
+                            </button>
+                            <span class="action-label">Process Data</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="processingResultSection" class="row" style="display: none;">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Processing Results</span>
+                        <div class="row">
+                            <div class="col s12">
+                                <h6>Verification Record</h6>
+                                <div class="records-container">
+                                    <pre id="verificationRecordJson" class="json-display"></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12">
+                                <div id="processingStats" class="stats-container">
+                                    <div class="stat-item">
+                                        <span class="stat-label">Total Processed:</span>
+                                        <span id="totalProcessed" class="stat-value">0</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Total Matched:</span>
+                                        <span id="totalMatched" class="stat-value">0</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Last Timestamp:</span>
+                                        <span id="lastTimestamp" class="stat-value">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12">
+                                <div id="processingResultMessage" class="message-box"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-action">
+                        <div class="right-align">
+                            <button id="continueProcessingBtn" class="btn-floating btn-large waves-effect waves-light purple" style="display: none;">
+                                <i class="material-icons">fast_forward</i>
+                            </button>
+                            <span class="action-label" id="continueProcessingLabel" style="display: none;">Continue Processing</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="preloader-wrapper big active">
+                <div class="spinner-layer spinner-blue-only">
+                    <div class="circle-clipper left">
+                        <div class="circle"></div>
+                    </div>
+                    <div class="gap-patch">
+                        <div class="circle"></div>
+                    </div>
+                    <div class="circle-clipper right">
+                        <div class="circle"></div>
+                    </div>
+                </div>
+            </div>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,7 +1,6 @@
 package com.goldmansachs.elasticdatareprocessing.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
@@ -15,7 +14,6 @@ import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.goldmansachs.elasticdatareprocessing.model.ElasticProcessingRequest;
 import com.goldmansachs.elasticdatareprocessing.model.ProcessingResult;
 import lombok.RequiredArgsConstructor;
@@ -54,8 +52,9 @@ public class ElasticsearchService {
                     .size(batchSize), 
                     Map.class);
             
+            @SuppressWarnings("unchecked")
             List<Map<String, Object>> records = response.hits().hits().stream()
-                    .map(Hit::source)
+                    .map(hit -> (Map<String, Object>) hit.source())
                     .collect(Collectors.toList());
             
             List<Map<String, Object>> processedRecords = records.stream()
@@ -119,8 +118,9 @@ public class ElasticsearchService {
             
             SearchResponse<Map> response = elasticsearchClient.search(searchBuilder.build(), Map.class);
             
+            @SuppressWarnings("unchecked")
             List<Map<String, Object>> records = response.hits().hits().stream()
-                    .map(Hit::source)
+                    .map(hit -> (Map<String, Object>) hit.source())
                     .collect(Collectors.toList());
             
             if (records.isEmpty()) {
@@ -177,7 +177,9 @@ public class ElasticsearchService {
                             Map.class);
                     
                     if (!verificationResponse.hits().hits().isEmpty()) {
-                        verificationRecord = verificationResponse.hits().hits().get(0).source();
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> sourceMap = (Map<String, Object>) verificationResponse.hits().hits().get(0).source();
+                        verificationRecord = sourceMap;
                     }
                 } catch (Exception e) {
                     log.warn("Could not retrieve verification record", e);

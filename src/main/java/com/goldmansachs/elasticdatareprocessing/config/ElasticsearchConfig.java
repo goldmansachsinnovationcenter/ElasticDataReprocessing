@@ -61,20 +61,28 @@ public class ElasticsearchConfig {
                 httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
                 
                 if (useSsl) {
-                    SSLContext sslContext = SSLContexts.custom()
-                            .loadTrustMaterial(null, (chain, authType) -> true) // Trust all certificates
-                            .build();
-                    httpClientBuilder.setSSLContext(sslContext);
+                    try {
+                        SSLContext sslContext = SSLContexts.custom()
+                                .loadTrustMaterial(null, (chain, authType) -> true) // Trust all certificates
+                                .build();
+                        httpClientBuilder.setSSLContext(sslContext);
+                    } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
+                        throw new RuntimeException("Failed to create SSL context", e);
+                    }
                 }
                 
                 return httpClientBuilder;
             });
         } else if (useSsl) {
             builder.setHttpClientConfigCallback(httpClientBuilder -> {
-                SSLContext sslContext = SSLContexts.custom()
-                        .loadTrustMaterial(null, (chain, authType) -> true) // Trust all certificates
-                        .build();
-                return httpClientBuilder.setSSLContext(sslContext);
+                try {
+                    SSLContext sslContext = SSLContexts.custom()
+                            .loadTrustMaterial(null, (chain, authType) -> true) // Trust all certificates
+                            .build();
+                    return httpClientBuilder.setSSLContext(sslContext);
+                } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
+                    throw new RuntimeException("Failed to create SSL context", e);
+                }
             });
         }
 
