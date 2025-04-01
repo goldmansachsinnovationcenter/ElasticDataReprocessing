@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public final class ElasticsearchService {
+public class ElasticsearchService {
 
 /**
  * Maximum number of sample records to return.
