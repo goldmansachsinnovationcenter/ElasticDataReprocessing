@@ -7,12 +7,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * Main application class for Elastic Data Reprocessing application.
  */
 @SpringBootApplication
-public final class ElasticDataReprocessingApplication {
+public class ElasticDataReprocessingApplication {
 
     /**
-     * Private constructor to prevent instantiation of utility class.
+     * Constructor for Spring Boot to use.
      */
-    private ElasticDataReprocessingApplication() {
+    public ElasticDataReprocessingApplication() {
     }
 
     /**

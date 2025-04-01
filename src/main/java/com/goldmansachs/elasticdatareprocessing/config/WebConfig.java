@@ -11,7 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Configures CORS settings and provides ObjectMapper bean.
  */
 @Configuration
-public final class WebConfig implements WebMvcConfigurer {
+public class WebConfig implements WebMvcConfigurer {
 
     /**
      * Configures CORS mappings for the application.

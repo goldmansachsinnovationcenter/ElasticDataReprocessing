@@ -27,7 +27,7 @@ import java.security.NoSuchAlgorithmException;
  * Provides connection settings and client bean for the application.
  */
 @Configuration
-public final class ElasticsearchConfig {
+public class ElasticsearchConfig {
 
     /**
      * Elasticsearch host address.
@@ -131,7 +131,7 @@ public final class ElasticsearchConfig {
      * @param httpClientBuilder the HTTP client builder to configure
      */
     private void configureSsl(
-            final org.apache.http.impl.client.HttpClientBuilder httpClientBuilder) {
+            final org.apache.http.impl.nio.client.HttpAsyncClientBuilder httpClientBuilder) {
         try {
             final SSLContext sslContext = SSLContexts.custom()
                     .loadTrustMaterial(null, (chain, authType) -> true)
