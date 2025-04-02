@@ -1,10 +1,32 @@
 spring:
   application:
     name: elastic-data-reprocessing
+  profiles:
+    active: dev
 
 server:
   port: 8080
 
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:localhost}
+  port: ${ELASTICSEARCH_PORT:9200}
+  username: ${ELASTICSEARCH_USERNAME:}
+  password: ${ELASTICSEARCH_PASSWORD:}
+  use-ssl: ${ELASTICSEARCH_USE_SSL:false}
+  connection-timeout: 5000
+  socket-timeout: 60000
+  batch-size: 100
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
 elasticsearch:
   host: localhost
   port: 9200

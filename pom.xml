@@ -94,6 +94,13 @@
             <version>1.18.3</version>
             <scope>test</scope>
         </dependency>
+        
+        <!-- Embedded Elasticsearch for testing -->
+        <dependency>
+            <groupId>pl.allegro.tech</groupId>
+            <artifactId>embedded-elasticsearch</artifactId>
+            <version>2.10.0</version>
+        </dependency>
     </dependencies>
     
     <build>
