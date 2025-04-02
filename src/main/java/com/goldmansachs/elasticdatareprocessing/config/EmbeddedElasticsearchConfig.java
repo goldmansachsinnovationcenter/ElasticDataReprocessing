@@ -26,10 +26,11 @@ public class EmbeddedElasticsearchConfig {
      *
      * @return the embedded Elasticsearch instance
      * @throws IOException if there's an issue starting the server
+     * @throws InterruptedException if the thread is interrupted while starting the server
      */
     @Bean(destroyMethod = "stop")
     @Primary
-    public EmbeddedElastic embeddedElastic() throws IOException {
+    public EmbeddedElastic embeddedElastic() throws IOException, InterruptedException {
         embeddedElastic = EmbeddedElastic.builder()
                 .withElasticVersion("7.10.2")
                 .withSetting(PopularProperties.HTTP_PORT, 9200)
