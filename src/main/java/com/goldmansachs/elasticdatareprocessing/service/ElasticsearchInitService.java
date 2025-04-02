@@ -69,16 +69,19 @@ public class ElasticsearchInitService {
      * @throws IOException if there's an issue with Elasticsearch
      */
     private void populateTestData() throws IOException {
-        for (int i = 1; i <= 10; i++) {
+        for (int i = 0; i < 10; i++) {
             final int recordId = i;
             Map<String, Object> document = new HashMap<>();
             document.put("id", "record-" + recordId);
-            document.put("timestamp", System.currentTimeMillis());
+            document.put("timestamp", System.currentTimeMillis() - (i * 1000)); // Decreasing timestamps for testing
             document.put("actionName", recordId % 2 == 0 ? "testAction" : "otherAction");
             
             Map<String, Object> jsonData = new HashMap<>();
             Map<String, Object> data = new HashMap<>();
             data.put("master", "value-" + recordId);
+            Map<String, Object> details = new HashMap<>();
+            details.put("info", "test");
+            data.put("details", details);
             jsonData.put("data", data);
             document.put("jsonData", jsonData);
             
