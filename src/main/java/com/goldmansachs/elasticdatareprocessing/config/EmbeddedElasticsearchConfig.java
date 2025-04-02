@@ -32,7 +32,7 @@ public class EmbeddedElasticsearchConfig {
     @Primary
     public EmbeddedElastic embeddedElastic() throws IOException, InterruptedException {
         embeddedElastic = EmbeddedElastic.builder()
-                .withElasticVersion("7.10.2")
+                .withElasticVersion("6.8.5")
                 .withSetting(PopularProperties.HTTP_PORT, 9200)
                 .withSetting(PopularProperties.CLUSTER_NAME, "embedded-elasticsearch")
                 .withStartTimeout(2, TimeUnit.MINUTES)
