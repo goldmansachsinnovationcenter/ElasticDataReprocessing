@@ -70,20 +70,21 @@ public class ElasticsearchInitService {
      */
     private void populateTestData() throws IOException {
         for (int i = 1; i <= 10; i++) {
+            final int recordId = i;
             Map<String, Object> document = new HashMap<>();
-            document.put("id", "record-" + i);
+            document.put("id", "record-" + recordId);
             document.put("timestamp", System.currentTimeMillis());
-            document.put("actionName", i % 2 == 0 ? "testAction" : "otherAction");
+            document.put("actionName", recordId % 2 == 0 ? "testAction" : "otherAction");
             
             Map<String, Object> jsonData = new HashMap<>();
             Map<String, Object> data = new HashMap<>();
-            data.put("master", "value-" + i);
+            data.put("master", "value-" + recordId);
             jsonData.put("data", data);
             document.put("jsonData", jsonData);
             
             elasticsearchClient.index(idx -> idx
                     .index("test-source-index")
-                    .id("record-" + i)
+                    .id("record-" + recordId)
                     .document(document)
             );
         }
