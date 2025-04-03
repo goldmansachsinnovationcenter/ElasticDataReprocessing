@@ -498,16 +498,23 @@ private Map<String, Object> generateMockDocument(final String index, final Strin
     document.put("index", index);
     document.put("timestamp", System.currentTimeMillis());
     
-    document.put("field1", "value-for-" + id);
-    document.put("field2", 123);
-    
-    Map<String, Object> nestedData = new HashMap<>();
-    nestedData.put("field3", "nested-value");
-    nestedData.put("field4", true);
-    document.put("nested", nestedData);
-    
     if (id.contains("functional-test")) {
+        document.put("field1", "functional-test-value");
+        document.put("field2", 123);
+        
+        Map<String, Object> nestedData = new HashMap<>();
+        nestedData.put("field3", "nested-value");
+        nestedData.put("field4", true);
+        document.put("nested", nestedData);
         document.put("master", "extracted-master-value");
+    } else {
+        document.put("field1", "value-for-" + id);
+        document.put("field2", 123);
+        
+        Map<String, Object> nestedData = new HashMap<>();
+        nestedData.put("field3", "nested-value");
+        nestedData.put("field4", true);
+        document.put("nested", nestedData);
     }
     
     return document;
