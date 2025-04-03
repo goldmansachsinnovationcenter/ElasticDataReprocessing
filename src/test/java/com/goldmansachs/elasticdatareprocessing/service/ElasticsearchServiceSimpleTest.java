@@ -48,11 +48,6 @@ public class ElasticsearchServiceSimpleTest {
     @BeforeEach
     void setUp() {
         mockJsonNode = mock(JsonNode.class);
-        ObjectNode mockMasterNode = mock(ObjectNode.class);
-        when(mockJsonNode.at(anyString())).thenReturn(mockMasterNode);
-        when(mockMasterNode.isMissingNode()).thenReturn(false);
-        when(mockMasterNode.isValueNode()).thenReturn(true);
-        when(mockMasterNode.asText()).thenReturn("test-master-value");
     }
 
     @Test
@@ -173,7 +168,14 @@ public class ElasticsearchServiceSimpleTest {
                 .masterJsonPath("/data/master")
                 .build();
         
-        when(objectMapper.readTree(anyString())).thenReturn(mockJsonNode);
+        JsonNode testJsonNode = mock(JsonNode.class);
+        ObjectNode testMasterNode = mock(ObjectNode.class);
+        
+        when(objectMapper.readTree("{\"data\": {\"master\": \"test-value\"}}")).thenReturn(testJsonNode);
+        when(testJsonNode.at("/data/master")).thenReturn(testMasterNode);
+        when(testMasterNode.isMissingNode()).thenReturn(false);
+        when(testMasterNode.isValueNode()).thenReturn(true);
+        when(testMasterNode.asText()).thenReturn("test-master-value");
         
         Method processRecordMethod = ElasticsearchService.class.getDeclaredMethod(
                 "processRecord", Map.class, ElasticProcessingRequest.class);
