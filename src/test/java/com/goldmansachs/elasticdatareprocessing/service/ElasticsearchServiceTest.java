@@ -5,7 +5,6 @@ import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
 import co.elastic.clients.elasticsearch.indices.ExistsRequest;
-import co.elastic.clients.elasticsearch.indices.BooleanResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goldmansachs.elasticdatareprocessing.model.DataInsertionRequest;
 import com.goldmansachs.elasticdatareprocessing.model.DataInsertionResult;
@@ -71,9 +70,13 @@ public class ElasticsearchServiceTest {
         co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
         when(elasticsearchClient.indices()).thenReturn(indicesClient);
         
-        BooleanResponse existsResponse = mock(BooleanResponse.class);
-        when(existsResponse.value()).thenReturn(true);
-        when(indicesClient.exists(any(Function.class))).thenReturn(existsResponse);
+        when(indicesClient.exists(any(Function.class))).thenAnswer(invocation -> {
+            return new Object() {
+                public boolean value() {
+                    return true;
+                }
+            };
+        });
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.result()).thenReturn(Result.Created);
@@ -105,9 +108,13 @@ public class ElasticsearchServiceTest {
         co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
         when(elasticsearchClient.indices()).thenReturn(indicesClient);
         
-        BooleanResponse existsResponse = mock(BooleanResponse.class);
-        when(existsResponse.value()).thenReturn(true);
-        when(indicesClient.exists(any(Function.class))).thenReturn(existsResponse);
+        when(indicesClient.exists(any(Function.class))).thenAnswer(invocation -> {
+            return new Object() {
+                public boolean value() {
+                    return true;
+                }
+            };
+        });
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.result()).thenReturn(Result.Created);
@@ -139,9 +146,13 @@ public class ElasticsearchServiceTest {
         co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
         when(elasticsearchClient.indices()).thenReturn(indicesClient);
         
-        BooleanResponse existsResponse = mock(BooleanResponse.class);
-        when(existsResponse.value()).thenReturn(false);
-        when(indicesClient.exists(any(Function.class))).thenReturn(existsResponse);
+        when(indicesClient.exists(any(Function.class))).thenAnswer(invocation -> {
+            return new Object() {
+                public boolean value() {
+                    return false;
+                }
+            };
+        });
         
         CreateIndexResponse createIndexResponse = mock(CreateIndexResponse.class);
         when(createIndexResponse.acknowledged()).thenReturn(true);
