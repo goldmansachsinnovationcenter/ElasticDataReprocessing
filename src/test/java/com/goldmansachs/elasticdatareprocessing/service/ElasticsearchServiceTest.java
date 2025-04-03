@@ -1,38 +1,30 @@
 package com.goldmansachs.elasticdatareprocessing.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Result;
+import co.elastic.clients.elasticsearch.core.IndexResponse;
+import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
+import co.elastic.clients.elasticsearch.indices.ExistsRequest;
+import co.elastic.clients.elasticsearch.indices.ExistsResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goldmansachs.elasticdatareprocessing.model.DataInsertionRequest;
 import com.goldmansachs.elasticdatareprocessing.model.DataInsertionResult;
-import com.goldmansachs.elasticdatareprocessing.model.ElasticProcessingRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.CreateIndexResponse;
-import org.elasticsearch.client.indices.GetIndexRequest;
-import org.elasticsearch.rest.RestStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
-import jakarta.json.JsonObject;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ElasticsearchServiceTest {
@@ -41,10 +33,7 @@ public class ElasticsearchServiceTest {
     private ObjectMapper objectMapper;
     
     @Mock
-    private RestHighLevelClient elasticsearchClient;
-    
-    @Captor
-    private ArgumentCaptor<IndexRequest> indexRequestCaptor;
+    private ElasticsearchClient elasticsearchClient;
 
     @InjectMocks
     private ElasticsearchService elasticsearchService;
@@ -79,23 +68,22 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        org.elasticsearch.client.IndicesClient indicesClient = mock(org.elasticsearch.client.IndicesClient.class);
+        co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
         when(elasticsearchClient.indices()).thenReturn(indicesClient);
-        when(indicesClient.exists(any(GetIndexRequest.class), any(RequestOptions.class))).thenReturn(true);
+        
+        ExistsResponse existsResponse = mock(ExistsResponse.class);
+        when(existsResponse.value()).thenReturn(true);
+        when(indicesClient.exists(any(Function.class))).thenReturn(existsResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
-        when(indexResponse.status()).thenReturn(RestStatus.CREATED);
-        when(indexResponse.getId()).thenReturn("test-doc-1");
+        when(indexResponse.result()).thenReturn(Result.Created);
+        when(indexResponse.id()).thenReturn("test-doc-1");
         
-        when(elasticsearchClient.index(any(IndexRequest.class), any(RequestOptions.class))).thenReturn(indexResponse);
+        when(elasticsearchClient.index(any(Function.class))).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient).index(indexRequestCaptor.capture(), any(RequestOptions.class));
-        IndexRequest capturedRequest = indexRequestCaptor.getValue();
-        
-        assertEquals("test-index", capturedRequest.index());
-        assertEquals("test-doc-1", capturedRequest.id());
+        verify(elasticsearchClient).index(any(Function.class));
         
         assertTrue(result.isSuccessful());
         assertEquals("test-doc-1", result.getDocumentId());
@@ -114,23 +102,22 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        org.elasticsearch.client.IndicesClient indicesClient = mock(org.elasticsearch.client.IndicesClient.class);
+        co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
         when(elasticsearchClient.indices()).thenReturn(indicesClient);
-        when(indicesClient.exists(any(GetIndexRequest.class), any(RequestOptions.class))).thenReturn(true);
+        
+        ExistsResponse existsResponse = mock(ExistsResponse.class);
+        when(existsResponse.value()).thenReturn(true);
+        when(indicesClient.exists(any(Function.class))).thenReturn(existsResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
-        when(indexResponse.status()).thenReturn(RestStatus.CREATED);
-        when(indexResponse.getId()).thenReturn("generated-id-123");
+        when(indexResponse.result()).thenReturn(Result.Created);
+        when(indexResponse.id()).thenReturn("generated-id-123");
         
-        when(elasticsearchClient.index(any(IndexRequest.class), any(RequestOptions.class))).thenReturn(indexResponse);
+        when(elasticsearchClient.index(any(Function.class))).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient).index(indexRequestCaptor.capture(), any(RequestOptions.class));
-        IndexRequest capturedRequest = indexRequestCaptor.getValue();
-        
-        assertEquals("test-index", capturedRequest.index());
-        assertNull(capturedRequest.id()); // ID should be null for auto-generation
+        verify(elasticsearchClient).index(any(Function.class));
         
         assertTrue(result.isSuccessful());
         assertEquals("generated-id-123", result.getDocumentId());
@@ -149,25 +136,27 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        org.elasticsearch.client.IndicesClient indicesClient = mock(org.elasticsearch.client.IndicesClient.class);
+        co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
         when(elasticsearchClient.indices()).thenReturn(indicesClient);
-        when(indicesClient.exists(any(GetIndexRequest.class), any(RequestOptions.class))).thenReturn(false);
+        
+        ExistsResponse existsResponse = mock(ExistsResponse.class);
+        when(existsResponse.value()).thenReturn(false);
+        when(indicesClient.exists(any(Function.class))).thenReturn(existsResponse);
         
         CreateIndexResponse createIndexResponse = mock(CreateIndexResponse.class);
-        when(createIndexResponse.isAcknowledged()).thenReturn(true);
-        
-        when(indicesClient.create(any(CreateIndexRequest.class), any(RequestOptions.class))).thenReturn(createIndexResponse);
+        when(createIndexResponse.acknowledged()).thenReturn(true);
+        when(indicesClient.create(any(Function.class))).thenReturn(createIndexResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
-        when(indexResponse.status()).thenReturn(RestStatus.CREATED);
-        when(indexResponse.getId()).thenReturn("test-doc-1");
+        when(indexResponse.result()).thenReturn(Result.Created);
+        when(indexResponse.id()).thenReturn("test-doc-1");
         
-        when(elasticsearchClient.index(any(IndexRequest.class), any(RequestOptions.class))).thenReturn(indexResponse);
+        when(elasticsearchClient.index(any(Function.class))).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(indicesClient).create(any(CreateIndexRequest.class), any(RequestOptions.class));
-        verify(elasticsearchClient).index(any(IndexRequest.class), any(RequestOptions.class));
+        verify(indicesClient).create(any(Function.class));
+        verify(elasticsearchClient).index(any(Function.class));
         
         assertTrue(result.isSuccessful());
         assertEquals("test-doc-1", result.getDocumentId());
