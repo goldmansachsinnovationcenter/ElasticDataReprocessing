@@ -4,7 +4,6 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
-import co.elastic.clients.elasticsearch.indices.ExistsRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goldmansachs.elasticdatareprocessing.model.DataInsertionRequest;
 import com.goldmansachs.elasticdatareprocessing.model.DataInsertionResult;
@@ -22,9 +21,11 @@ import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for the ElasticsearchService class.
+ */
 @ExtendWith(MockitoExtension.class)
 public class ElasticsearchServiceTest {
 
@@ -67,26 +68,21 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
-        when(elasticsearchClient.indices()).thenReturn(indicesClient);
+        Object mockIndicesClient = mock(Object.class);
+        when(elasticsearchClient.indices()).thenReturn(mockIndicesClient);
         
-        when(indicesClient.exists(any(Function.class))).thenAnswer(invocation -> {
-            return new Object() {
-                public boolean value() {
-                    return true;
-                }
-            };
-        });
+        Object mockExistsResponse = mock(Object.class);
+        when(mockExistsResponse.value()).thenReturn(true);
+        when(mockIndicesClient.exists(any())).thenReturn(mockExistsResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.result()).thenReturn(Result.Created);
         when(indexResponse.id()).thenReturn("test-doc-1");
-        
-        when(elasticsearchClient.index(any(Function.class))).thenReturn(indexResponse);
+        when(elasticsearchClient.index(any())).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient).index(any(Function.class));
+        verify(elasticsearchClient).index(any());
         
         assertTrue(result.isSuccessful());
         assertEquals("test-doc-1", result.getDocumentId());
@@ -105,26 +101,21 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
-        when(elasticsearchClient.indices()).thenReturn(indicesClient);
+        Object mockIndicesClient = mock(Object.class);
+        when(elasticsearchClient.indices()).thenReturn(mockIndicesClient);
         
-        when(indicesClient.exists(any(Function.class))).thenAnswer(invocation -> {
-            return new Object() {
-                public boolean value() {
-                    return true;
-                }
-            };
-        });
+        Object mockExistsResponse = mock(Object.class);
+        when(mockExistsResponse.value()).thenReturn(true);
+        when(mockIndicesClient.exists(any())).thenReturn(mockExistsResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.result()).thenReturn(Result.Created);
         when(indexResponse.id()).thenReturn("generated-id-123");
-        
-        when(elasticsearchClient.index(any(Function.class))).thenReturn(indexResponse);
+        when(elasticsearchClient.index(any())).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient).index(any(Function.class));
+        verify(elasticsearchClient).index(any());
         
         assertTrue(result.isSuccessful());
         assertEquals("generated-id-123", result.getDocumentId());
@@ -143,31 +134,26 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        co.elastic.clients.elasticsearch.indices.IndicesClient indicesClient = mock(co.elastic.clients.elasticsearch.indices.IndicesClient.class);
-        when(elasticsearchClient.indices()).thenReturn(indicesClient);
+        Object mockIndicesClient = mock(Object.class);
+        when(elasticsearchClient.indices()).thenReturn(mockIndicesClient);
         
-        when(indicesClient.exists(any(Function.class))).thenAnswer(invocation -> {
-            return new Object() {
-                public boolean value() {
-                    return false;
-                }
-            };
-        });
+        Object mockExistsResponse = mock(Object.class);
+        when(mockExistsResponse.value()).thenReturn(false);
+        when(mockIndicesClient.exists(any())).thenReturn(mockExistsResponse);
         
         CreateIndexResponse createIndexResponse = mock(CreateIndexResponse.class);
         when(createIndexResponse.acknowledged()).thenReturn(true);
-        when(indicesClient.create(any(Function.class))).thenReturn(createIndexResponse);
+        when(mockIndicesClient.create(any())).thenReturn(createIndexResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.result()).thenReturn(Result.Created);
         when(indexResponse.id()).thenReturn("test-doc-1");
-        
-        when(elasticsearchClient.index(any(Function.class))).thenReturn(indexResponse);
+        when(elasticsearchClient.index(any())).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(indicesClient).create(any(Function.class));
-        verify(elasticsearchClient).index(any(Function.class));
+        verify(mockIndicesClient).create(any());
+        verify(elasticsearchClient).index(any());
         
         assertTrue(result.isSuccessful());
         assertEquals("test-doc-1", result.getDocumentId());
