@@ -7,14 +7,18 @@ import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import co.elastic.clients.elasticsearch.indices.ExistsRequest;
 import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goldmansachs.elasticdatareprocessing.model.DataInsertionRequest;
+import com.goldmansachs.elasticdatareprocessing.model.DataInsertionResult;
 import com.goldmansachs.elasticdatareprocessing.model.ElasticProcessingRequest;
 import com.goldmansachs.elasticdatareprocessing.model.ProcessingResult;
 import lombok.RequiredArgsConstructor;
@@ -369,6 +373,53 @@ private void extractAndAddMasterField(
                 processedRecord.put("master", objectMapper.convertValue(masterNode, Map.class));
             }
         }
+    }
+}
+
+/**
+ * Insert a document into the specified Elasticsearch index.
+ *
+ * @param request the data insertion request containing index name and document data
+ * @return result of the insertion operation
+ */
+public DataInsertionResult insertDocument(final DataInsertionRequest request) {
+    try {
+        log.info("Inserting document into index: {}", request.getIndexName());
+        
+        boolean exists = elasticsearchClient.indices()
+                .exists(e -> e.index(request.getIndexName()))
+                .value();
+                
+        if (!exists) {
+            elasticsearchClient.indices().create(c -> c.index(request.getIndexName()));
+            log.info("Created index: {}", request.getIndexName());
+        }
+        
+        String documentId = request.getDocumentId();
+        boolean hasProvidedId = StringUtils.hasText(documentId);
+        
+        IndexResponse response = hasProvidedId 
+            ? elasticsearchClient.index(i -> i
+                .index(request.getIndexName())
+                .id(documentId)
+                .document(request.getDocumentData()))
+            : elasticsearchClient.index(i -> i
+                .index(request.getIndexName())
+                .document(request.getDocumentData()));
+                
+        return DataInsertionResult.builder()
+                .documentId(response.id())
+                .documentData(request.getDocumentData())
+                .successful(true)
+                .message("Document successfully inserted with ID: " + response.id())
+                .build();
+                
+    } catch (IOException e) {
+        log.error("Error inserting document", e);
+        return DataInsertionResult.builder()
+                .successful(false)
+                .message("Error: " + e.getMessage())
+                .build();
     }
 }
 

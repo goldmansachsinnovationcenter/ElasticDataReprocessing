@@ -1,5 +1,7 @@
 package com.goldmansachs.elasticdatareprocessing.controller;
 
+import com.goldmansachs.elasticdatareprocessing.model.DataInsertionRequest;
+import com.goldmansachs.elasticdatareprocessing.model.DataInsertionResult;
 import com.goldmansachs.elasticdatareprocessing.model.ElasticProcessingRequest;
 import com.goldmansachs.elasticdatareprocessing.model.ProcessingResult;
 import com.goldmansachs.elasticdatareprocessing.service.ElasticsearchService;
@@ -52,9 +54,23 @@ public final class ElasticProcessingController {
     @PostMapping("/process")
     public ResponseEntity<ProcessingResult> processBatch(
             @Valid @RequestBody final ElasticProcessingRequest request) {
-        log.info("Processing batch from index: {} to index: {}",
+        log.info("Processing batch from index: {} to index: {}", 
                 request.getSourceIndex(), request.getTargetIndex());
         final ProcessingResult result = elasticsearchService.processBatch(request);
+        return ResponseEntity.ok(result);
+    }
+    
+    /**
+     * Insert a document into a specified Elasticsearch index.
+     *
+     * @param request insertion request with index name and document data
+     * @return response entity with insertion result
+     */
+    @PostMapping("/insert")
+    public ResponseEntity<DataInsertionResult> insertDocument(
+            @Valid @RequestBody final DataInsertionRequest request) {
+        log.info("Inserting document into index: {}", request.getIndexName());
+        final DataInsertionResult result = elasticsearchService.insertDocument(request);
         return ResponseEntity.ok(result);
     }
 }
