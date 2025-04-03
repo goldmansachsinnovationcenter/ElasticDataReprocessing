@@ -123,7 +123,9 @@ public class ElasticsearchServiceSimpleTest {
         when(indexResponse.id()).thenReturn("test-doc-1");
         when(indexResponse.result()).thenReturn(Result.Created);
         
-        doReturn(indexResponse).when(elasticsearchClient).index(any());
+        doAnswer(invocation -> indexResponse)
+            .when(elasticsearchClient)
+            .index(any(co.elastic.clients.elasticsearch.core.IndexRequest.class));
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
@@ -143,7 +145,9 @@ public class ElasticsearchServiceSimpleTest {
                 .documentData(documentData)
                 .build();
         
-        doThrow(new IOException("Test exception")).when(elasticsearchClient).index(any());
+        doThrow(new IOException("Test exception"))
+            .when(elasticsearchClient)
+            .index(any(co.elastic.clients.elasticsearch.core.IndexRequest.class));
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
