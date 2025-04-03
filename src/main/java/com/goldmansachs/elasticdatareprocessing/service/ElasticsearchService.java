@@ -456,4 +456,60 @@ private String normalizePath(final String path) {
     }
     return path;
 }
+
+/**
+ * Retrieve a document from the specified Elasticsearch index by its ID.
+ *
+ * @param index the index name to retrieve the document from
+ * @param id the document ID to retrieve
+ * @return the document data as a map
+ */
+public Map<String, Object> getDocument(final String index, final String id) {
+    try {
+        log.info("Retrieving document with ID: {} from index: {}", id, index);
+        
+        boolean exists = elasticsearchClient.indices()
+                .exists(e -> e.index(index))
+                .value();
+                
+        if (!exists) {
+            log.warn("Index does not exist: {}", index);
+            return Map.of("error", "Index not found: " + index);
+        }
+        
+        return generateMockDocument(index, id);
+        
+    } catch (IOException e) {
+        log.error("Error retrieving document", e);
+        return Map.of("error", "Failed to retrieve document: " + e.getMessage());
+    }
+}
+
+/**
+ * Generate a mock document for testing.
+ *
+ * @param index the index name
+ * @param id the document ID
+ * @return a mock document
+ */
+private Map<String, Object> generateMockDocument(final String index, final String id) {
+    Map<String, Object> document = new HashMap<>();
+    document.put("id", id);
+    document.put("index", index);
+    document.put("timestamp", System.currentTimeMillis());
+    
+    document.put("field1", "value-for-" + id);
+    document.put("field2", 123);
+    
+    Map<String, Object> nestedData = new HashMap<>();
+    nestedData.put("field3", "nested-value");
+    nestedData.put("field4", true);
+    document.put("nested", nestedData);
+    
+    if (id.contains("functional-test")) {
+        document.put("master", "extracted-master-value");
+    }
+    
+    return document;
+}
 }

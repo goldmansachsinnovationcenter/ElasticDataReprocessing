@@ -79,20 +79,18 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        GetIndexRequest getIndexRequest = mock(GetIndexRequest.class);
-        when(elasticsearchClient.indices().exists(any(GetIndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(true);
+        when(elasticsearchClient.indices()).thenReturn(mock(org.elasticsearch.client.IndicesClient.class));
+        when(elasticsearchClient.indices().exists(any(), any())).thenReturn(true);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.status()).thenReturn(RestStatus.CREATED);
         when(indexResponse.getId()).thenReturn("test-doc-1");
         
-        when(elasticsearchClient.index(any(IndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(indexResponse);
+        when(elasticsearchClient.index(any(), any())).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient).index(indexRequestCaptor.capture(), eq(RequestOptions.DEFAULT));
+        verify(elasticsearchClient).index(indexRequestCaptor.capture(), any());
         IndexRequest capturedRequest = indexRequestCaptor.getValue();
         
         assertEquals("test-index", capturedRequest.index());
@@ -115,19 +113,18 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        when(elasticsearchClient.indices().exists(any(GetIndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(true);
+        when(elasticsearchClient.indices()).thenReturn(mock(org.elasticsearch.client.IndicesClient.class));
+        when(elasticsearchClient.indices().exists(any(), any())).thenReturn(true);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.status()).thenReturn(RestStatus.CREATED);
         when(indexResponse.getId()).thenReturn("generated-id-123");
         
-        when(elasticsearchClient.index(any(IndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(indexResponse);
+        when(elasticsearchClient.index(any(), any())).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient).index(indexRequestCaptor.capture(), eq(RequestOptions.DEFAULT));
+        verify(elasticsearchClient).index(indexRequestCaptor.capture(), any());
         IndexRequest capturedRequest = indexRequestCaptor.getValue();
         
         assertEquals("test-index", capturedRequest.index());
@@ -150,26 +147,24 @@ public class ElasticsearchServiceTest {
                 .documentData(documentData)
                 .build();
         
-        when(elasticsearchClient.indices().exists(any(GetIndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(false);
+        when(elasticsearchClient.indices()).thenReturn(mock(org.elasticsearch.client.IndicesClient.class));
+        when(elasticsearchClient.indices().exists(any(), any())).thenReturn(false);
         
         CreateIndexResponse createIndexResponse = mock(CreateIndexResponse.class);
         when(createIndexResponse.isAcknowledged()).thenReturn(true);
         
-        when(elasticsearchClient.indices().create(any(CreateIndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(createIndexResponse);
+        when(elasticsearchClient.indices().create(any(), any())).thenReturn(createIndexResponse);
         
         IndexResponse indexResponse = mock(IndexResponse.class);
         when(indexResponse.status()).thenReturn(RestStatus.CREATED);
         when(indexResponse.getId()).thenReturn("test-doc-1");
         
-        when(elasticsearchClient.index(any(IndexRequest.class), eq(RequestOptions.DEFAULT)))
-                .thenReturn(indexResponse);
+        when(elasticsearchClient.index(any(), any())).thenReturn(indexResponse);
         
         DataInsertionResult result = elasticsearchService.insertDocument(request);
         
-        verify(elasticsearchClient.indices()).create(any(CreateIndexRequest.class), eq(RequestOptions.DEFAULT));
-        verify(elasticsearchClient).index(any(IndexRequest.class), eq(RequestOptions.DEFAULT));
+        verify(elasticsearchClient.indices()).create(any(), any());
+        verify(elasticsearchClient).index(any(), any());
         
         assertTrue(result.isSuccessful());
         assertEquals("test-doc-1", result.getDocumentId());

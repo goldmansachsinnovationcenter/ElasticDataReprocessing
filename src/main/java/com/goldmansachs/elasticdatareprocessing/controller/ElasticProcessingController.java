@@ -9,10 +9,14 @@ import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * REST controller for Elasticsearch data processing operations.
@@ -72,5 +76,21 @@ public final class ElasticProcessingController {
         log.info("Inserting document into index: {}", request.getIndexName());
         final DataInsertionResult result = elasticsearchService.insertDocument(request);
         return ResponseEntity.ok(result);
+    }
+    
+    /**
+     * Retrieve a document from a specified Elasticsearch index by its ID.
+     *
+     * @param index the index name to retrieve the document from
+     * @param id the document ID to retrieve
+     * @return response entity with the document data
+     */
+    @GetMapping("/document/{index}/{id}")
+    public ResponseEntity<Map<String, Object>> getDocument(
+            @PathVariable final String index,
+            @PathVariable final String id) {
+        log.info("Retrieving document with ID: {} from index: {}", id, index);
+        final Map<String, Object> document = elasticsearchService.getDocument(index, id);
+        return ResponseEntity.ok(document);
     }
 }
