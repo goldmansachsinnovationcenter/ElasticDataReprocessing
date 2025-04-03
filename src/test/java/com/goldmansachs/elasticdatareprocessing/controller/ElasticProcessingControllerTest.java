@@ -1,6 +1,8 @@
 package com.goldmansachs.elasticdatareprocessing.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goldmansachs.elasticdatareprocessing.model.DataInsertionRequest;
+import com.goldmansachs.elasticdatareprocessing.model.DataInsertionResult;
 import com.goldmansachs.elasticdatareprocessing.model.ElasticProcessingRequest;
 import com.goldmansachs.elasticdatareprocessing.model.ProcessingResult;
 import com.goldmansachs.elasticdatareprocessing.service.ElasticsearchService;
@@ -17,8 +19,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ElasticProcessingController.class)
@@ -76,5 +80,70 @@ public class ElasticProcessingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
+    }
+    
+    @Test
+    void testInsertDocument() throws Exception {
+        Map<String, Object> documentData = new HashMap<>();
+        documentData.put("field1", "value1");
+        documentData.put("field2", "value2");
+
+        DataInsertionRequest request = DataInsertionRequest.builder()
+                .indexName("test-index")
+                .documentId("test-doc-1")
+                .documentData(documentData)
+                .build();
+
+        DataInsertionResult result = DataInsertionResult.builder()
+                .documentId("test-doc-1")
+                .documentData(documentData)
+                .successful(true)
+                .message("Document successfully inserted with ID: test-doc-1")
+                .build();
+
+        when(elasticsearchService.insertDocument(any(DataInsertionRequest.class)))
+                .thenReturn(result);
+
+        mockMvc.perform(post("/api/elastic/insert")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successful").value(true))
+                .andExpect(jsonPath("$.documentId").value("test-doc-1"))
+                .andExpect(jsonPath("$.message").value("Document successfully inserted with ID: test-doc-1"));
+
+        verify(elasticsearchService).insertDocument(any(DataInsertionRequest.class));
+    }
+
+    @Test
+    void testInsertDocumentWithoutDocumentId() throws Exception {
+        Map<String, Object> documentData = new HashMap<>();
+        documentData.put("field1", "value1");
+        documentData.put("field2", "value2");
+
+        DataInsertionRequest request = DataInsertionRequest.builder()
+                .indexName("test-index")
+                .documentData(documentData)
+                .build();
+
+        DataInsertionResult result = DataInsertionResult.builder()
+                .documentId("generated-id-123")
+                .documentData(documentData)
+                .successful(true)
+                .message("Document successfully inserted with ID: generated-id-123")
+                .build();
+
+        when(elasticsearchService.insertDocument(any(DataInsertionRequest.class)))
+                .thenReturn(result);
+
+        mockMvc.perform(post("/api/elastic/insert")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successful").value(true))
+                .andExpect(jsonPath("$.documentId").value("generated-id-123"))
+                .andExpect(jsonPath("$.message").value("Document successfully inserted with ID: generated-id-123"));
+
+        verify(elasticsearchService).insertDocument(any(DataInsertionRequest.class));
     }
 }

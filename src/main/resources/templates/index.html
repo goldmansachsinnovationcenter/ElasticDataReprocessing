@@ -79,8 +79,9 @@
                         <div class="row">
                             <div class="col s12">
                                 <ul class="tabs">
-                                    <li class="tab col s6"><a href="#sourceRecords" class="active">Source Records</a></li>
-                                    <li class="tab col s6"><a href="#processedRecords">Processed Records</a></li>
+                                    <li class="tab col s4"><a href="#sourceRecords" class="active">Source Records</a></li>
+                                    <li class="tab col s4"><a href="#processedRecords">Processed Records</a></li>
+                                    <li class="tab col s4"><a href="#addDataTab">Add Data</a></li>
                                 </ul>
                             </div>
                             <div id="sourceRecords" class="col s12">
@@ -91,6 +92,32 @@
                             <div id="processedRecords" class="col s12">
                                 <div class="records-container">
                                     <pre id="processedRecordsJson" class="json-display"></pre>
+                                </div>
+                            </div>
+                            <div id="addDataTab" class="col s12">
+                                <div class="row">
+                                    <div class="input-field col s12">
+                                        <input id="indexName" type="text" class="validate" required>
+                                        <label for="indexName">Index Name</label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="input-field col s12">
+                                        <input id="documentId" type="text" class="validate">
+                                        <label for="documentId">Document ID (optional)</label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="input-field col s12">
+                                        <textarea id="documentData" class="materialize-textarea validate" required></textarea>
+                                        <label for="documentData">Document Data (JSON)</label>
+                                    </div>
+                                </div>
+                                <div class="right-align">
+                                    <button id="insertDataBtn" class="btn-floating btn-large waves-effect waves-light teal">
+                                        <i class="material-icons">add</i>
+                                    </button>
+                                    <span class="action-label">Insert Data</span>
                                 </div>
                             </div>
                         </div>

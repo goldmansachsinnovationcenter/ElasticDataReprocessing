@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalProcessed = document.getElementById('totalProcessed');
     const totalMatched = document.getElementById('totalMatched');
     const lastTimestamp = document.getElementById('lastTimestamp');
+    const insertDataBtn = document.getElementById('insertDataBtn');
     
     const sourceIndex = document.getElementById('sourceIndex');
     const targetIndex = document.getElementById('targetIndex');
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
     getSampleBtn.addEventListener('click', getSampleRecords);
     processDataBtn.addEventListener('click', processData);
     continueProcessingBtn.addEventListener('click', continueProcessing);
+    insertDataBtn.addEventListener('click', insertData);
     
     function getSampleRecords() {
         if (!validateForm()) return;
@@ -214,5 +216,64 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function hideLoading() {
         loadingOverlay.style.display = 'none';
+    }
+    
+    function insertData() {
+        const indexName = document.getElementById('indexName').value.trim();
+        const documentId = document.getElementById('documentId').value.trim();
+        const documentDataInput = document.getElementById('documentData').value.trim();
+        
+        if (!indexName) {
+            displayError(sampleResultMessage, 'Index name is required');
+            return;
+        }
+        
+        if (!documentDataInput) {
+            displayError(sampleResultMessage, 'Document data is required');
+            return;
+        }
+        
+        let documentData;
+        try {
+            documentData = JSON.parse(documentDataInput);
+        } catch (e) {
+            displayError(sampleResultMessage, 'Invalid JSON format: ' + e.message);
+            return;
+        }
+        
+        const requestData = {
+            indexName: indexName,
+            documentId: documentId || null,
+            documentData: documentData
+        };
+        
+        showLoading();
+        
+        fetch('/api/elastic/insert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to insert data');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.successful) {
+                displayMessage(sampleResultMessage, data.message);
+                document.getElementById('documentData').value = '';
+            } else {
+                displayError(sampleResultMessage, data.message);
+            }
+            hideLoading();
+        })
+        .catch(error => {
+            displayError(sampleResultMessage, error.message);
+            hideLoading();
+        });
     }
 });
